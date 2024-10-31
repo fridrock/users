@@ -1,8 +1,11 @@
 package utils
 
 import (
-	"fmt"
+	"encoding/json"
+	"log/slog"
 	"net/http"
+
+	"github.com/fridrock/users/api"
 )
 
 type HandlerWithError func(w http.ResponseWriter, r *http.Request) (status int, err error)
@@ -12,7 +15,15 @@ func HandleErrorMiddleware(h HandlerWithError) http.Handler {
 		status, err := h(w, r)
 		if err != nil {
 			w.WriteHeader(status)
-			w.Write([]byte(fmt.Sprint(err)))
+			errMsg, err := json.MarshalIndent(api.ErrorResponse{
+				Status:  status,
+				Message: err.Error(),
+			}, "", " ")
+			if err != nil {
+				slog.Error("Error encoding ErrorResponse")
+			} else {
+				w.Write([]byte(errMsg))
+			}
 		}
 	})
 }
