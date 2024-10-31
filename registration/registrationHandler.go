@@ -18,7 +18,6 @@ type RegistrationHandlerImpl struct {
 	parser       RegistrationParser
 }
 
-// TODO response with token
 // TODO make validation
 // TODO tests
 func (rs *RegistrationHandlerImpl) HandleRegistration(w http.ResponseWriter, r *http.Request) (int, error) {
@@ -32,7 +31,7 @@ func (rs *RegistrationHandlerImpl) HandleRegistration(w http.ResponseWriter, r *
 	}
 	responseDto, err := rs.tokenService.GenerateToken(user)
 	if err != nil {
-		slog.Info("Error processing token %s", err.Error)
+		slog.Info("Error processing token %s", err.Error())
 		return http.StatusBadRequest, err
 	}
 	responseText, err := json.MarshalIndent(responseDto, "", " ")
