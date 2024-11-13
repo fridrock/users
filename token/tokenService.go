@@ -3,7 +3,6 @@ package token
 import (
 	"fmt"
 	"log"
-	"log/slog"
 	"os"
 	"time"
 
@@ -13,17 +12,18 @@ import (
 )
 
 type TokenService interface {
-	GenerateToken(api.User) (api.TokenDto, error)
-	ParseToken(string) (api.User, error)
-	RefreshToken(api.TokenDto) (api.TokenDto, error)
+	GenerateToken(api.User) (TokenDto, error)
+	ValidateToken(string) (api.User, error)
+	RefreshToken(TokenDto) (TokenDto, error)
 }
 
 type TokenServiceImpl struct {
-	SECRET_KEY []byte
+	SECRET_KEY  []byte
+	REFRESH_KEY string
 }
 
-func (ts *TokenServiceImpl) GenerateToken(user api.User) (api.TokenDto, error) {
-	var dto api.TokenDto
+func (ts *TokenServiceImpl) GenerateToken(user api.User) (TokenDto, error) {
+	var dto TokenDto
 	accessTokenString, err := ts.generateAccess(user)
 	if err != nil {
 		return dto, err
@@ -47,16 +47,37 @@ func (ts *TokenServiceImpl) generateAccess(user api.User) (string, error) {
 }
 
 func (ts *TokenServiceImpl) generateRefresh(user api.User) (string, error) {
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":  user.Id,
-		"exp": jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"id":            user.Id,
+		"exp":           jwt.NewNumericDate(time.Now().Add(time.Hour * 3)),
+		"refreshSecret": ts.REFRESH_KEY,
 	})
-	return accessToken.SignedString(ts.SECRET_KEY)
+	return refreshToken.SignedString(ts.SECRET_KEY)
 }
 
-func (ts *TokenServiceImpl) ParseToken(tokenString string) (api.User, error) {
+func (ts *TokenServiceImpl) ValidateToken(tokenString string) (api.User, error) {
 	var dto api.User
-	tokenObj, err := ts.validateToken(tokenString)
+	parsed, err := ts.parseToken(tokenString)
+	if err != nil {
+		return dto, err
+	}
+	if time.Now().After(parsed.exp.Time) {
+		return dto, fmt.Errorf("expired token %v", parsed.exp.Time)
+	}
+	dto.Id = parsed.id
+	return dto, nil
+
+}
+
+type tokenParsed struct {
+	id            uuid.UUID
+	exp           *jwt.NumericDate
+	refreshSecret string
+}
+
+func (ts *TokenServiceImpl) parseToken(tokenString string) (tokenParsed, error) {
+	var dto tokenParsed
+	tokenObj, err := ts.checkSigning(tokenString)
 	if err != nil {
 		return dto, err
 	}
@@ -65,28 +86,41 @@ func (ts *TokenServiceImpl) ParseToken(tokenString string) (api.User, error) {
 		if err != nil {
 			return dto, err
 		}
-		exp, _ := claims.GetExpirationTime()
-
-		slog.Info(fmt.Sprintf("%v", exp))
-		if time.Now().After(exp.Time) {
-			return dto, fmt.Errorf("Expired token %v", exp.Time)
+		dto.id = id
+		exp, err := claims.GetExpirationTime()
+		if err != nil {
+			return dto, err
 		}
-		dto.Id = id
+		dto.exp = exp
+		dto.refreshSecret = fmt.Sprintf("%v", claims["refreshSecret"])
+
 	}
 	return dto, nil
 }
-func (ts *TokenServiceImpl) validateToken(tokenString string) (*jwt.Token, error) {
+
+func (ts *TokenServiceImpl) checkSigning(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return ts.SECRET_KEY, nil
 	})
 }
 
-func (ts *TokenServiceImpl) RefreshToken(api.TokenDto) (api.TokenDto, error) {
-	var dto api.TokenDto
-	return dto, nil
+func (ts *TokenServiceImpl) RefreshToken(incomingToken TokenDto) (TokenDto, error) {
+	var dto TokenDto
+	parsed, err := ts.parseToken(incomingToken.RefreshToken)
+	if err != nil {
+		return dto, err
+	}
+	if parsed.refreshSecret != ts.REFRESH_KEY {
+		return dto, fmt.Errorf("wrong refresh key")
+	}
+	user := api.User{
+		Id: parsed.id,
+	}
+	dto, err = ts.GenerateToken(user)
+	return dto, err
 }
 
 func NewTokenService() TokenService {
@@ -95,7 +129,13 @@ func NewTokenService() TokenService {
 	if !exists {
 		log.Fatalf("Can't load env variable: %v", varName)
 	}
+	varName = "REFRESH_KEY"
+	refresh, exists := os.LookupEnv(varName)
+	if !exists {
+		log.Fatalf("Can't load env variable: %v", varName)
+	}
 	return &TokenServiceImpl{
-		SECRET_KEY: []byte(secret),
+		SECRET_KEY:  []byte(secret),
+		REFRESH_KEY: refresh,
 	}
 }

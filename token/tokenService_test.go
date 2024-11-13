@@ -13,6 +13,7 @@ var tokenService TokenService
 func TestMain(m *testing.M) {
 	//setup
 	os.Setenv("SECRET_KEY", "SECRET_FOR_TEST")
+	os.Setenv("REFRESH_KEY", "SECRET_FOR_TEST")
 	tokenService = NewTokenService()
 	//running test
 	m.Run()
@@ -23,7 +24,7 @@ func TestParseTokenSuccess(t *testing.T) {
 	tokenDto, _ := tokenService.GenerateToken(api.User{
 		Id: id,
 	})
-	parsedUser, err := tokenService.ParseToken(tokenDto.AccessToken)
+	parsedUser, err := tokenService.ValidateToken(tokenDto.AccessToken)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -33,7 +34,7 @@ func TestParseTokenSuccess(t *testing.T) {
 }
 func TestParseExpiredToken(t *testing.T) {
 	expiredTokenString := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzAzOTk2OTMsImlkIjoiZDUyN2Y5YzUtNGFmOS00NzdlLThlZDItOWNkMDAxMzk5NjkyIn0.i6C2Zaua3_gqYS_D1oxPDiuJDtcGbXTqwmiB-RkT8rs"
-	_, err := tokenService.ParseToken(expiredTokenString)
+	_, err := tokenService.ValidateToken(expiredTokenString)
 	if err == nil {
 		t.Errorf("Without error on expired token")
 	}

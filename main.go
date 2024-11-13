@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/fridrock/auth_service/db/core"
-	"github.com/fridrock/users/registration"
+	"github.com/fridrock/users/token"
+	"github.com/fridrock/users/usr"
 	"github.com/fridrock/users/utils"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -20,8 +21,9 @@ func main() {
 type App struct {
 	server              *http.Server
 	db                  *sqlx.DB
-	registrationStore   registration.RegistrationStorage
-	registrationHandler registration.RegistrationHandler
+	userStorage         usr.UserStorage
+	userHandler         usr.UserHandler
+	tokenRefreshHandler token.TokenRefreshHandler
 }
 
 func startApp() {
@@ -32,8 +34,9 @@ func startApp() {
 func (a App) setup() {
 	a.db = core.CreateConnection()
 	defer a.db.Close()
-	a.registrationStore = registration.NewRegistrationStorage(a.db)
-	a.registrationHandler = registration.NewRegistrationHandler(a.registrationStore)
+	a.userStorage = usr.NewUserStorage(a.db)
+	a.userHandler = usr.NewUserHandler(a.userStorage)
+	a.tokenRefreshHandler = token.NewTokenRefreshHandler()
 	a.setupServer()
 }
 func (a App) setupServer() {
@@ -48,7 +51,9 @@ func (a App) setupServer() {
 }
 func (a App) getRouter() http.Handler {
 	mainRouter := mux.NewRouter()
-	mainRouter.Handle("/users/", utils.HandleErrorMiddleware(a.registrationHandler.HandleRegistration)).Methods("POST")
+	mainRouter.Handle("/users/reg", utils.HandleErrorMiddleware(a.userHandler.HandleRegistration)).Methods("POST")
+	mainRouter.Handle("/users/auth", utils.HandleErrorMiddleware(a.userHandler.HandleAuth)).Methods("POST")
+	mainRouter.Handle("/token/refresh", utils.HandleErrorMiddleware(a.tokenRefreshHandler.HandleRefreshToken)).Methods("POST")
 	return mainRouter
 }
 
