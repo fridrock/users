@@ -12,6 +12,7 @@ import (
 type UserStorage interface {
 	CheckUser(userDto api.AuthUserDto) (api.User, error)
 	SaveUser(userDto api.UserDto) (api.User, error)
+	FindUsers(string) ([]api.GetUserDto, error)
 }
 
 type UserStorageImpl struct {
@@ -19,7 +20,14 @@ type UserStorageImpl struct {
 	hasher utils.PasswordHasher
 }
 
-func (us UserStorageImpl) CheckUser(authUserDto api.AuthUserDto) (api.User, error) {
+func (us *UserStorageImpl) FindUsers(username string) ([]api.GetUserDto, error) {
+	var userDtos []api.GetUserDto
+	q := `SELECT id, username, email, name, surname FROM users WHERE username LIKE $1`
+	err := us.db.Select(&userDtos, q, "%"+username+"%")
+	return userDtos, err
+}
+
+func (us *UserStorageImpl) CheckUser(authUserDto api.AuthUserDto) (api.User, error) {
 	var user api.User
 	q := `SELECT * FROM users WHERE username=$1`
 
@@ -33,7 +41,7 @@ func (us UserStorageImpl) CheckUser(authUserDto api.AuthUserDto) (api.User, erro
 	return user, nil
 }
 
-func (us UserStorageImpl) SaveUser(userDto api.UserDto) (api.User, error) {
+func (us *UserStorageImpl) SaveUser(userDto api.UserDto) (api.User, error) {
 	var user api.User
 	if us.checkIfUserExist(userDto) {
 		return user, fmt.Errorf("such user already exist")
@@ -59,7 +67,7 @@ func (us UserStorageImpl) SaveUser(userDto api.UserDto) (api.User, error) {
 	return user, nil
 }
 
-func (us UserStorageImpl) fillUserFromUserDto(userDto api.UserDto, id uuid.UUID, hashedPassword string) api.User {
+func (us *UserStorageImpl) fillUserFromUserDto(userDto api.UserDto, id uuid.UUID, hashedPassword string) api.User {
 	return api.User{
 		Id:             id,
 		Username:       userDto.Username,
@@ -70,7 +78,7 @@ func (us UserStorageImpl) fillUserFromUserDto(userDto api.UserDto, id uuid.UUID,
 	}
 }
 
-func (us UserStorageImpl) checkIfUserExist(u api.UserDto) bool {
+func (us *UserStorageImpl) checkIfUserExist(u api.UserDto) bool {
 	var user api.User
 	q := `SELECT * FROM users WHERE username=$1 OR email=$2`
 	row := us.db.QueryRowx(q, u.Username, u.Email)

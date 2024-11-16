@@ -15,6 +15,14 @@ type AuthUserDto struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type GetUserDto struct {
+	Id       uuid.UUID `json:"id" db:"id"`
+	Username string    `json:"username" db:"username"`
+	Email    string    `json:"email" db:"email"`
+	Name     string    `json:"name" db:"name"`
+	Surname  string    `json:"surname" db:"surname"`
+}
+
 type User struct {
 	Id             uuid.UUID `db:"id"`
 	Username       string    `db:"username"`

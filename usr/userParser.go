@@ -11,6 +11,7 @@ import (
 type UserParser interface {
 	GetAuthUserDto(*http.Request) (api.AuthUserDto, error)
 	GetUserDto(*http.Request) (api.UserDto, error)
+	GetUsername(*http.Request) (string, error)
 }
 
 type UserParserImpl struct {
@@ -37,4 +38,10 @@ func (up UserParserImpl) GetUserDto(r *http.Request) (api.UserDto, error) {
 	}
 	err = up.validate.Struct(userDto)
 	return userDto, err
+}
+
+func (up UserParserImpl) GetUsername(r *http.Request) (string, error) {
+	var userDto api.GetUserDto
+	err := json.NewDecoder(r.Body).Decode(&userDto)
+	return userDto.Username, err
 }

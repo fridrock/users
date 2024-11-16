@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fridrock/auth_service/db/core"
+	"github.com/fridrock/users/friend"
 	"github.com/fridrock/users/usr"
 	"github.com/fridrock/users/utils"
 	"github.com/gorilla/mux"
@@ -22,6 +23,8 @@ type App struct {
 	db                  *sqlx.DB
 	userStorage         usr.UserStorage
 	userHandler         usr.UserHandler
+	friendStorage       friend.FriendStorage
+	friendHandler       friend.FriendHandler
 	tokenRefreshHandler usr.TokenRefreshHandler
 	authManager         utils.AuthManager
 }
@@ -36,6 +39,8 @@ func (a App) setup() {
 	defer a.db.Close()
 	a.userStorage = usr.NewUserStorage(a.db)
 	a.userHandler = usr.NewUserHandler(a.userStorage)
+	a.friendStorage = friend.NewFriendStorage(a.db)
+	a.friendHandler = friend.NewFriendHandler(a.friendStorage)
 	a.tokenRefreshHandler = usr.NewTokenRefreshHandler()
 	a.authManager = utils.NewAuthManager()
 	a.setupServer()
@@ -54,15 +59,10 @@ func (a App) getRouter() http.Handler {
 	mainRouter := mux.NewRouter()
 	mainRouter.Handle("/users/reg", utils.HandleErrorMiddleware(a.userHandler.HandleRegistration)).Methods("POST")
 	mainRouter.Handle("/users/auth", utils.HandleErrorMiddleware(a.userHandler.HandleAuth)).Methods("POST")
-	mainRouter.Handle("/token/refresh", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth((a.tokenRefreshHandler.HandleRefreshToken)))).Methods("POST")
+	mainRouter.Handle("/users/", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.userHandler.FindUser))).Methods("GET")
+	mainRouter.Handle("/token/refresh", utils.HandleErrorMiddleware((a.tokenRefreshHandler.HandleRefreshToken))).Methods("POST")
+	mainRouter.Handle("/friends/", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.friendHandler.AddFriend))).Methods("POST")
+	mainRouter.Handle("/friends/", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.friendHandler.DeleteFriend))).Methods("DELETE")
+	mainRouter.Handle("/friends/", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.friendHandler.GetFriends))).Methods("GET")
 	return mainRouter
 }
-
-// func (a App) getUsersRouter(r *mux.Router) *mux.Router {
-// 	usersRouter := r.PathPrefix("/users").Subrouter()
-// 	usersRouter.Handle("/signup", handlers.HandleErrorMiddleware(a.userService.CreateUser)).Methods("POST")
-// 	usersRouter.Handle("/send-confirmation", handlers.HandleErrorMiddleware(a.userService.SendConfirmation)).Methods("POST")
-// 	usersRouter.Handle("/signin", handlers.HandleErrorMiddleware(a.userService.AuthUser)).Methods("POST")
-// 	usersRouter.Handle("/confirm-email/{code}", handlers.HandleErrorMiddleware((a.userService.ConfirmEmail))).Methods("GET")
-// 	return usersRouter
-// }

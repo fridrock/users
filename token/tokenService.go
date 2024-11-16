@@ -66,7 +66,6 @@ func (ts *TokenServiceImpl) ValidateToken(tokenString string) (api.User, error) 
 	}
 	dto.Id = parsed.id
 	return dto, nil
-
 }
 
 type tokenParsed struct {

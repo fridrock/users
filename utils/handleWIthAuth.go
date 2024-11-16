@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -57,6 +58,7 @@ func (am AuthManagerImpl) HandleWithAuth(h HandlerWithError) HandlerWithError {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		user, err := am.getUserFromToken(r)
 		if err != nil {
+			slog.Debug(err.Error())
 			return http.StatusUnauthorized, err
 		}
 		ctx := context.WithValue(r.Context(), key, user.Id)

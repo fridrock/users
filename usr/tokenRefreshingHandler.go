@@ -32,6 +32,7 @@ func (rs *TokenRefreshHandlerImpl) HandleRefreshToken(w http.ResponseWriter, r *
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(responseText)
 	return http.StatusCreated, nil
 }
