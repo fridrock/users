@@ -41,7 +41,7 @@ func (ts *TokenServiceImpl) generateAccess(user api.User) (string, error) {
 	//When we need some additional info we can add it and rewrite logic of refresh token generation
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":  user.Id,
-		"exp": jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
+		"exp": jwt.NewNumericDate(time.Now().Add(1 * time.Minute)),
 	})
 	return accessToken.SignedString(ts.SECRET_KEY)
 }

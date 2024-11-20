@@ -22,7 +22,7 @@ func (fs *FriendStorageImpl) AddFriend(userId uuid.UUID, friendId uuid.UUID) err
 	return err
 }
 func (fs *FriendStorageImpl) DeleteFriend(userId uuid.UUID, friendId uuid.UUID) error {
-	q := `DELETE FROM friends WHERE (fr1id = $1 OR fr2id = $2) OR (fr1id = $2 AND fr2id = $1)`
+	q := `DELETE FROM friends WHERE (fr1id = $1 AND fr2id = $2) OR (fr1id = $2 AND fr2id = $1)`
 	_, err := fs.db.Exec(q, userId, friendId)
 	return err
 }

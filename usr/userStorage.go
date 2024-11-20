@@ -14,6 +14,8 @@ type UserStorage interface {
 	SaveUser(userDto api.UserDto) (api.User, error)
 	GetProfiles([]uuid.UUID) ([]api.GetUserDto, error)
 	FindUsers(string) ([]api.GetUserDto, error)
+	GetUsers() ([]api.GetUserDto, error)
+	FilterNotInFriends([]api.GetUserDto, uuid.UUID) ([]api.GetUserDto, error)
 }
 
 type UserStorageImpl struct {
@@ -37,6 +39,37 @@ func (us *UserStorageImpl) FindUsers(username string) ([]api.GetUserDto, error) 
 	var userDtos []api.GetUserDto
 	q := `SELECT id, username, email, name, surname FROM users WHERE username LIKE $1`
 	err := us.db.Select(&userDtos, q, "%"+username+"%")
+	return userDtos, err
+}
+
+func (us *UserStorageImpl) FilterNotInFriends(users []api.GetUserDto, userId uuid.UUID) ([]api.GetUserDto, error) {
+	q := `SELECT fr2id FROM friends where fr1id = $1`
+	var friendsIds []uuid.UUID
+	var usersNotFriends []api.GetUserDto
+	err := us.db.Select(&friendsIds, q, userId)
+	if err != nil {
+		return usersNotFriends, err
+	}
+	friendsIds = append(friendsIds, userId)
+	for _, user := range users {
+		flag := true
+		for _, id := range friendsIds {
+			if id == user.Id {
+				flag = false
+				break
+			}
+		}
+		if flag {
+			usersNotFriends = append(usersNotFriends, user)
+		}
+	}
+	return usersNotFriends, nil
+}
+
+func (us *UserStorageImpl) GetUsers() ([]api.GetUserDto, error) {
+	var userDtos []api.GetUserDto
+	q := `SELECT id, username, email, name, surname FROM users`
+	err := us.db.Select(&userDtos, q)
 	return userDtos, err
 }
 

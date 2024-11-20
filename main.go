@@ -9,6 +9,7 @@ import (
 	"github.com/fridrock/users/friend"
 	"github.com/fridrock/users/usr"
 	"github.com/fridrock/users/utils"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 )
@@ -59,11 +60,19 @@ func (a App) getRouter() http.Handler {
 	mainRouter := mux.NewRouter()
 	mainRouter.Handle("/users/reg", utils.HandleErrorMiddleware(a.userHandler.HandleRegistration)).Methods("POST")
 	mainRouter.Handle("/users/auth", utils.HandleErrorMiddleware(a.userHandler.HandleAuth)).Methods("POST")
-	mainRouter.Handle("/users/", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.userHandler.FindUser))).Methods("GET")
+	mainRouter.Handle("/users/{username}", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.userHandler.FindUser))).Methods("GET")
+	mainRouter.Handle("/users/", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.userHandler.GetUsers))).Methods("GET")
 	mainRouter.Handle("/users/profiles", utils.HandleErrorMiddleware(a.userHandler.GetProfiles)).Methods("GET")
-	mainRouter.Handle("/token/refresh", utils.HandleErrorMiddleware((a.tokenRefreshHandler.HandleRefreshToken))).Methods("POST")
+	mainRouter.Handle("/token/refresh", utils.HandleErrorMiddleware(a.tokenRefreshHandler.HandleRefreshToken)).Methods("POST")
 	mainRouter.Handle("/friends/", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.friendHandler.AddFriend))).Methods("POST")
 	mainRouter.Handle("/friends/", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.friendHandler.DeleteFriend))).Methods("DELETE")
 	mainRouter.Handle("/friends/", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.friendHandler.GetFriends))).Methods("GET")
-	return mainRouter
+	corsObj := handlers.CORS(
+		handlers.AllowedOrigins([]string{"*"}),
+		handlers.AllowedMethods([]string{"GET", "POST", "DELETE", "PATCH", "OPTIONS"}),
+		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
+	)
+
+	handler := corsObj(mainRouter)
+	return handler
 }

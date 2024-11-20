@@ -2,10 +2,12 @@ package usr
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/fridrock/users/api"
 	"github.com/go-playground/validator/v10"
+	"github.com/gorilla/mux"
 )
 
 type UserParser interface {
@@ -41,7 +43,10 @@ func (up UserParserImpl) GetUserDto(r *http.Request) (api.UserDto, error) {
 }
 
 func (up UserParserImpl) GetUsername(r *http.Request) (string, error) {
-	var userDto api.GetUserDto
-	err := json.NewDecoder(r.Body).Decode(&userDto)
-	return userDto.Username, err
+	vars := mux.Vars(r)
+	username, exists := vars["username"]
+	if !exists {
+		return username, fmt.Errorf("no username in query")
+	}
+	return username, nil
 }

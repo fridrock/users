@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fridrock/users/token"
+	"github.com/fridrock/users/utils"
 	"github.com/google/uuid"
 )
 
@@ -15,6 +16,7 @@ type UserHandler interface {
 	HandleRegistration(w http.ResponseWriter, r *http.Request) (int, error)
 	HandleAuth(w http.ResponseWriter, r *http.Request) (int, error)
 	FindUser(w http.ResponseWriter, r *http.Request) (int, error)
+	GetUsers(w http.ResponseWriter, r *http.Request) (int, error)
 	GetProfiles(w http.ResponseWriter, r *http.Request) (int, error)
 }
 
@@ -49,7 +51,7 @@ func (uh *UserHandlerImpl) GetProfiles(w http.ResponseWriter, r *http.Request) (
 func (uh *UserHandlerImpl) FindUser(w http.ResponseWriter, r *http.Request) (int, error) {
 	username, err := uh.parser.GetUsername(r)
 	if err != nil {
-		slog.Debug("error parsing username" + err.Error())
+		slog.Error("error parsing username" + err.Error())
 		return http.StatusBadRequest, err
 	}
 	usersFound, err := uh.storage.FindUsers(username)
@@ -57,7 +59,28 @@ func (uh *UserHandlerImpl) FindUser(w http.ResponseWriter, r *http.Request) (int
 		slog.Debug(fmt.Sprintf("user with name %v not found: %v", username, err.Error()))
 		return http.StatusNotFound, err
 	}
-	responseText, err := json.MarshalIndent(usersFound, "", " ")
+	filtered, err := uh.storage.FilterNotInFriends(usersFound, utils.UserFromContext(r.Context()))
+	if err != nil {
+		return http.StatusNotFound, err
+	}
+	responseText, err := json.MarshalIndent(filtered, "", " ")
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(responseText)
+	return http.StatusOK, nil
+}
+func (uh *UserHandlerImpl) GetUsers(w http.ResponseWriter, r *http.Request) (int, error) {
+	usersFound, err := uh.storage.GetUsers()
+	if err != nil {
+		return http.StatusNotFound, err
+	}
+	filtered, err := uh.storage.FilterNotInFriends(usersFound, utils.UserFromContext(r.Context()))
+	if err != nil {
+		return http.StatusNotFound, err
+	}
+	responseText, err := json.MarshalIndent(filtered, "", " ")
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
