@@ -5,20 +5,45 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/fridrock/users/token"
+	"github.com/google/uuid"
 )
 
 type UserHandler interface {
 	HandleRegistration(w http.ResponseWriter, r *http.Request) (int, error)
 	HandleAuth(w http.ResponseWriter, r *http.Request) (int, error)
 	FindUser(w http.ResponseWriter, r *http.Request) (int, error)
+	GetProfiles(w http.ResponseWriter, r *http.Request) (int, error)
 }
 
 type UserHandlerImpl struct {
 	storage      UserStorage
 	tokenService token.TokenService
 	parser       UserParser
+}
+
+func (uh *UserHandlerImpl) GetProfiles(w http.ResponseWriter, r *http.Request) (int, error) {
+	r.ParseForm()
+	idsParam := r.FormValue("ids")
+	idsString := strings.Split(idsParam, ",")
+	var ids []uuid.UUID
+	for _, idString := range idsString {
+		id, _ := uuid.Parse(idString)
+		ids = append(ids, id)
+	}
+	users, err := uh.storage.GetProfiles(ids)
+	if err != nil {
+		return http.StatusNotFound, err
+	}
+	responseText, err := json.MarshalIndent(users, "", " ")
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(responseText)
+	return http.StatusOK, nil
 }
 
 func (uh *UserHandlerImpl) FindUser(w http.ResponseWriter, r *http.Request) (int, error) {

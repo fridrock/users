@@ -12,12 +12,25 @@ import (
 type UserStorage interface {
 	CheckUser(userDto api.AuthUserDto) (api.User, error)
 	SaveUser(userDto api.UserDto) (api.User, error)
+	GetProfiles([]uuid.UUID) ([]api.GetUserDto, error)
 	FindUsers(string) ([]api.GetUserDto, error)
 }
 
 type UserStorageImpl struct {
 	db     *sqlx.DB
 	hasher utils.PasswordHasher
+}
+
+func (us *UserStorageImpl) GetProfiles(ids []uuid.UUID) ([]api.GetUserDto, error) {
+	var users []api.GetUserDto
+	q := `SELECT id, username, email, name, surname FROM users WHERE id IN(?)`
+	q, args, err := sqlx.In(q, ids)
+	if err != nil {
+		fmt.Println("error building query in string" + err.Error())
+	}
+	q = us.db.Rebind(q)
+	err = us.db.Select(&users, q, args...)
+	return users, err
 }
 
 func (us *UserStorageImpl) FindUsers(username string) ([]api.GetUserDto, error) {

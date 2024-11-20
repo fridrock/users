@@ -60,6 +60,7 @@ func (a App) getRouter() http.Handler {
 	mainRouter.Handle("/users/reg", utils.HandleErrorMiddleware(a.userHandler.HandleRegistration)).Methods("POST")
 	mainRouter.Handle("/users/auth", utils.HandleErrorMiddleware(a.userHandler.HandleAuth)).Methods("POST")
 	mainRouter.Handle("/users/", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.userHandler.FindUser))).Methods("GET")
+	mainRouter.Handle("/users/profiles", utils.HandleErrorMiddleware(a.userHandler.GetProfiles)).Methods("GET")
 	mainRouter.Handle("/token/refresh", utils.HandleErrorMiddleware((a.tokenRefreshHandler.HandleRefreshToken))).Methods("POST")
 	mainRouter.Handle("/friends/", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.friendHandler.AddFriend))).Methods("POST")
 	mainRouter.Handle("/friends/", utils.HandleErrorMiddleware(a.authManager.HandleWithAuth(a.friendHandler.DeleteFriend))).Methods("DELETE")
